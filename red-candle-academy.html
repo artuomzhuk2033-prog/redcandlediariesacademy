@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Red Candle Diaries Academy</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: var(--tg-theme-bg-color, #0D0F12);
+  --card: var(--tg-theme-secondary-bg-color, #171A1F);
+  --text: var(--tg-theme-text-color, #F2F0EB);
+  --hint: var(--tg-theme-hint-color, #8A8F98);
+  --line: rgba(128,128,128,.25);
+  --red: #E5484D;
+  --green: #3FA77A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px calc(32px + env(safe-area-inset-bottom,0px))}
+h1{font-size:30px;line-height:1.05;margin:8px 0 6px;font-weight:700}
+h2{font-size:24px;line-height:1.15;margin:4px 0 4px;font-weight:700}
+h3{font-size:19px;margin:26px 0 0;font-weight:700}
+p{margin:0;line-height:1.45}
+.hint{color:var(--hint);font-size:15px}
+.bar{display:flex;align-items:flex-end;gap:5px;height:34px}
+.c{display:block;width:10px;border-radius:2px;background:var(--red)}
+.c.g{background:var(--green)}
+.summary{display:flex;justify-content:space-between;align-items:flex-end;margin:18px 0 22px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.course,.lesson{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:0;border-radius:14px;padding:16px;margin-bottom:12px;cursor:pointer}
+.course:focus-visible,.lesson:focus-visible,.btn:focus-visible,.back:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.course .top{display:flex;justify-content:space-between;gap:12px;align-items:flex-end}
+.course b{font-size:18px;font-weight:700}
+.course p{margin:4px 0 0}
+.lesson{display:flex;align-items:center;gap:14px;border-radius:10px;padding:14px 16px}
+.lesson .dot{flex:none;width:12px;height:26px;border-radius:2px;background:var(--red)}
+.lesson.done .dot{background:var(--green)}
+.lesson .t{flex:1}
+.lesson .t b{font-weight:500;font-size:16px}
+.back{font:inherit;background:none;border:0;color:var(--hint);padding:8px 0;margin-bottom:6px;cursor:pointer}
+.btn{display:block;width:100%;font:inherit;font-weight:700;font-size:17px;border:0;border-radius:12px;padding:15px;margin-top:22px;cursor:pointer;background:var(--green);color:#06130D}
+.btn.undo{background:var(--card);color:var(--text)}
+.body{margin-top:14px;line-height:1.6;font-size:17px;white-space:pre-line}
+.note{margin-top:28px;font-size:13px;color:var(--hint)}
+figure{margin:18px 0;background:var(--card);border-radius:12px;padding:10px}
+figure svg{width:100%;height:auto;display:block}
+figure svg text{font-family:inherit;font-size:11px;fill:var(--hint)}
+figcaption{font-size:13px;color:var(--hint);margin-top:6px;line-height:1.4}
+.callout{border-left:4px solid var(--green);background:var(--card);border-radius:10px;padding:12px 14px;margin:18px 0}
+.callout.warn{border-left-color:var(--red)}
+.callout.key{border-left-color:var(--hint)}
+.callout b{display:block;margin-bottom:4px}
+.callout p,.callout li{line-height:1.5;font-size:16px}
+ul{margin:12px 0 0;padding-left:20px;line-height:1.55;font-size:17px}
+.callout ul{margin:4px 0 0;font-size:16px}
+.tw{overflow-x:auto;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--hint);font-weight:500}
+.callout.story{border-left-color:#5B9BFF}
+.callout.myth{border-left-color:var(--red)}
+.callout.do{border-left-color:var(--text)}
+.q{margin-top:22px}
+.q .body{margin-top:0}
+.opt{display:block;width:100%;text-align:left;font:inherit;font-size:16px;color:var(--text);background:var(--card);border:2px solid transparent;border-radius:10px;padding:12px 14px;margin-top:8px;cursor:pointer}
+.opt:disabled{cursor:default;color:var(--text);opacity:1}
+.opt.ok{border-color:var(--green)}
+.opt.no{border-color:var(--red)}
+.exp{margin-top:10px;font-size:15px;line-height:1.5;color:var(--hint)}
+.exp b{color:var(--text)}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+// ====== CHART HELPERS (all illustrations are drawn in code) ======
+var COL = {r:'#E5484D', g:'#3FA77A', h:'var(--hint)', b:'#5B9BFF'};
+var HALO = 'paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round';
+
+function chart(c, o){
+  o = o || {};
+  var W = 360, H = o.vol ? 240 : 200, T = 12, B = o.vol ? 64 : 12, P = H - T - B, n = c.length, st = (W - 16) / n, bw = Math.max(5, st * 0.55);
+  var op = [], hi = [], lo = [], r = Math.max.apply(null, c) - Math.min.apply(null, c), w = r * 0.025, i;
+  for (i = 0; i < n; i++) {
+    var a = i ? c[i-1] : c[0] - (c[1] - c[0]) * 0.6, b = c[i];
+    op.push(a);
+    hi.push(o.hi && o.hi[i] != null ? o.hi[i] : Math.max(a, b) + w * (1 + (i * 7) % 3));
+    lo.push(o.lo && o.lo[i] != null ? o.lo[i] : Math.min(a, b) - w * (1 + (i * 5) % 3));
+  }
+  var vals = hi.concat(lo);
+  (o.lines || []).forEach(function(l){ vals.push(l.y); });
+  (o.zones || []).forEach(function(z){ vals.push(z.a, z.b); });
+  var mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals), pad = (mx - mn) * 0.06; mx += pad; mn -= pad;
+  function Y(v){ return (T + (mx - v) / (mx - mn) * P).toFixed(1); }
+  function X(k){ return (8 + st * (k + 0.5)).toFixed(1); }
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (o.label || 'Price chart') + '">';
+  (o.zones || []).forEach(function(z){
+    var y1 = Y(Math.max(z.a, z.b)), y2 = Y(Math.min(z.a, z.b));
+    s += '<rect x="0" y="' + y1 + '" width="' + W + '" height="' + (y2 - y1).toFixed(1) + '" fill="' + COL[z.c] + '" opacity=".17"/>';
+    s += '<text x="6" y="' + (+y1 + 12) + '" style="fill:' + COL[z.c] + ';' + HALO + '">' + z.t + '</text>';
+  });
+  (o.lines || []).forEach(function(l){
+    s += '<line x1="0" x2="' + W + '" y1="' + Y(l.y) + '" y2="' + Y(l.y) + '" stroke="' + COL[l.c] + '" stroke-width="1.5" stroke-dasharray="5 4"/>';
+    s += '<text x="6" y="' + (Y(l.y) - 4) + '" style="fill:' + COL[l.c] + ';' + HALO + '">' + l.t + '</text>';
+  });
+  for (i = 0; i < n; i++) {
+    var col = c[i] >= op[i] ? COL.g : COL.r, yt = Y(Math.max(op[i], c[i])), yb = Y(Math.min(op[i], c[i]));
+    s += '<line x1="' + X(i) + '" x2="' + X(i) + '" y1="' + Y(hi[i]) + '" y2="' + Y(lo[i]) + '" stroke="' + col + '" stroke-width="1.6"/>';
+    s += '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="' + yt + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1.5, yb - yt).toFixed(1) + '" fill="' + col + '"/>';
+  }
+  if (o.sma) {
+    var pts = [], k, sum;
+    for (i = o.sma - 1; i < n; i++) { sum = 0; for (k = 0; k < o.sma; k++) sum += c[i - k]; pts.push(X(i) + ',' + Y(sum / o.sma)); }
+    s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + COL.b + '" stroke-width="2.5" stroke-linejoin="round"/>';
+  }
+  if (o.sma2) {
+    var pts2 = [], k2, sum2;
+    for (i = o.sma2 - 1; i < n; i++) { sum2 = 0; for (k2 = 0; k2 < o.sma2; k2++) sum2 += c[i - k2]; pts2.push(X(i) + ',' + Y(sum2 / o.sma2)); }
+    s += '<polyline points="' + pts2.join(' ') + '" fill="none" stroke="#E0A030" stroke-width="2.5" stroke-linejoin="round"/>';
+  }
+  if (o.vol) {
+    var vm = Math.max.apply(null, o.vol);
+    for (i = 0; i < n; i++) {
+      var hh = o.vol[i] / vm * 48;
+      s += '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="' + (H - 8 - hh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hh.toFixed(1) + '" fill="' + (c[i] >= op[i] ? COL.g : COL.r) + '" opacity=".7"/>';
+    }
+    s += '<text x="6" y="' + (H - 58) + '" style="' + HALO + '">Volume</text>';
+  }
+  (o.pts || []).forEach(function(p){
+    var e = p.a === 'e';
+    s += '<circle cx="' + X(p.i) + '" cy="' + Y(p.v) + '" r="3.5" fill="none" stroke="var(--text)" stroke-width="1.5"/>';
+    s += '<text x="' + (+X(p.i) + (e ? -9 : 9)) + '" y="' + (+Y(p.v) + 4 + (p.dy || 0)) + '" text-anchor="' + (e ? 'end' : 'start') + '" style="fill:var(--text);' + HALO + '">' + p.t + '</text>';
+  });
+  return s + '</svg>';
+}
+
+function anatomy(){
+  var s = '<svg viewBox="0 0 360 210" role="img" aria-label="Anatomy of a green and a red candle">';
+  s += '<text x="105" y="16" text-anchor="middle">Green: price rose</text><text x="255" y="16" text-anchor="middle">Red: price fell</text>';
+  s += '<line x1="105" x2="105" y1="34" y2="190" stroke="' + COL.g + '" stroke-width="3"/><rect x="85" y="72" width="40" height="76" fill="' + COL.g + '"/>';
+  s += '<line x1="255" x2="255" y1="34" y2="190" stroke="' + COL.r + '" stroke-width="3"/><rect x="235" y="72" width="40" height="76" fill="' + COL.r + '"/>';
+  var L = [['High',36],['Close',76],['Open',146],['Low',192]];
+  L.forEach(function(t){ s += '<text x="76" y="' + (t[1] + 4) + '" text-anchor="end" style="fill:var(--text)">' + t[0] + '</text><line x1="80" x2="100" y1="' + t[1] + '" y2="' + t[1] + '" stroke="var(--hint)" stroke-dasharray="2 3"/>'; });
+  var R = [['High',36],['Open',76],['Close',146],['Low',192]];
+  R.forEach(function(t){ s += '<text x="284" y="' + (t[1] + 4) + '" style="fill:var(--text)">' + t[0] + '</text><line x1="260" x2="280" y1="' + t[1] + '" y2="' + t[1] + '" stroke="var(--hint)" stroke-dasharray="2 3"/>'; });
+  s += '<text x="105" y="114" text-anchor="middle" style="fill:#06130D;font-weight:700">Body</text><text x="255" y="114" text-anchor="middle" style="fill:#fff;font-weight:700">Body</text>';
+  return s + '</svg>';
+}
+
+function orderbook(){
+  var asks = [[100.4,2.1],[100.3,3.4],[100.2,1.5],[100.1,2.8]], bids = [[100.0,3.0],[99.9,4.2],[99.8,2.2],[99.7,5.0]];
+  var s = '<svg viewBox="0 0 360 214" role="img" aria-label="Order book with asks above and bids below">';
+  asks.forEach(function(r, i){ var y = 8 + i * 22; s += '<text x="8" y="' + (y + 14) + '">' + r[0].toFixed(1) + '</text><rect x="64" y="' + y + '" width="' + (r[1] * 48) + '" height="18" rx="3" fill="' + COL.r + '"/><text x="' + (64 + r[1] * 48 + 6) + '" y="' + (y + 14) + '">' + r[1] + '</text>'; });
+  s += '<line x1="0" x2="360" y1="107" y2="107" stroke="var(--line)"/><text x="180" y="111" text-anchor="middle" style="fill:var(--text);' + HALO + '">Spread: 0.1</text>';
+  bids.forEach(function(r, i){ var y = 118 + i * 22; s += '<text x="8" y="' + (y + 14) + '">' + r[0].toFixed(1) + '</text><rect x="64" y="' + y + '" width="' + (r[1] * 48) + '" height="18" rx="3" fill="' + COL.g + '"/><text x="' + (64 + r[1] * 48 + 6) + '" y="' + (y + 14) + '">' + r[1] + '</text>'; });
+  s += '<text x="352" y="22" text-anchor="end">Asks (sellers)</text><text x="352" y="206" text-anchor="end">Bids (buyers)</text>';
+  return s + '</svg>';
+}
+
+function emotions(){
+  var P = '10,150 60,125 110,95 160,45 190,35 230,70 260,120 290,165 320,150 350,130';
+  var s = '<svg viewBox="0 0 360 200" role="img" aria-label="Emotions during a price cycle">';
+  s += '<polyline points="' + P + '" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linejoin="round"/>';
+  s += '<circle cx="190" cy="35" r="5" fill="' + COL.r + '"/><circle cx="290" cy="165" r="5" fill="' + COL.r + '"/>';
+  s += '<text x="46" y="116" text-anchor="middle">Hope</text><text x="100" y="82" text-anchor="middle">Confidence</text>';
+  s += '<text x="190" y="22" text-anchor="middle" style="fill:var(--text)">Euphoria: FOMO buying</text><text x="246" y="66">Anxiety</text>';
+  s += '<text x="290" y="188" text-anchor="middle" style="fill:var(--text)">Panic selling</text><text x="335" y="118" text-anchor="middle">Relief</text>';
+  return s + '</svg>';
+}
+
+// ====== COURSES: edit text here ======
+// block types: ["p",text] ["h",text] ["fig",function,caption] ["tip",text] ["warn",text] ["ul",[items]] ["tbl",[[header...],[row...]]] ["key",[items]]
+var COURSES = [
+{id:"basics", title:"Trading basics", desc:"Markets, orders and how an exchange works.", lessons:[
+{t:"What a candlestick tells you", m:"5 min read", b:[
+["p","A candlestick packs four prices into one shape: where the period opened, where it closed, and the highest and lowest prices reached in between. A daily chart has one candle per day, a 1-hour chart has one per hour. Same market, different zoom."],
+["fig",anatomy,"Anatomy of a candle: the body runs from open to close, the wicks reach the high and the low."],
+["h","How to read one candle"],
+["p","The thick part is the body. The thin lines above and below are the wicks (also called shadows), and they mark the extremes. On most platforms green means the close was higher than the open and red means it was lower. Colors can be changed in settings, so check which is which before you trade."],
+["p","The body tells you who won the period. A long green body means buyers stayed in control from open to close. A short body means indecision. The wicks tell you what got rejected: a long lower wick means sellers pushed the price down, but buyers pushed it back up before the close."],
+["fig",function(){return chart([100,102,101,104,103,99,103,105,104,107,106,109],{lo:{5:92},pts:[{i:5,v:92,t:"Long lower wick: low rejected"}],label:"Candles with one long lower wick"});},"The sixth candle dipped hard, then recovered. Buyers defended that low."],
+["tip","Zoom matters. A red candle on the 5-minute chart can sit inside a green candle on the daily chart. Always know which timeframe you are looking at."],
+["h","A common beginner mistake"],
+["p","Reading too much into a single candle. One candle is a data point, not a prediction. A long lower wick near a level you already marked as support is interesting. The same wick in the middle of nowhere is just noise."],
+["key",["A candle shows open, close, high and low for one period.","Body = open to close. Wicks = the extremes.","Colors depend on your platform settings. Check them.","Context (levels, trend, timeframe) matters more than the shape."]]
+]},
+{t:"Market, limit and stop orders", m:"6 min read", b:[
+["p","Every trade you place is an order, and the order type decides how and at what price you get filled. Picking the wrong one is one of the cheapest ways to lose money in a hurry."],
+["tbl",[["Order","How it fills","Main risk"],["Market","Right away, at the best price available","Slippage in thin markets"],["Limit","Only at your price or better","It may never fill"],["Stop","Activates after price touches your trigger","Can fill worse than the trigger"]]],
+["h","Slippage"],
+["p","Slippage is the gap between the price you expected and the price you got. It happens when your order is bigger than what is available at the best price, so it keeps filling at the next price, then the next. On major coins with deep order books it is small. On small altcoins, or in a fast market, it can be large."],
+["h","Maker and taker fees"],
+["p","Most exchanges charge less when you add an order to the book (a limit order that waits, called maker) than when you take one that is already there (a market order, called taker). The difference looks small, but it adds up over hundreds of trades. Check the fee table of your exchange."],
+["h","Putting a bracket together"],
+["p","A basic plan uses three orders: a limit order to enter at a price you chose, a stop-loss to exit if you are wrong, and a limit order to take profit if you are right. Many exchanges let you place the stop and the target together (often called OCO, one cancels the other)."],
+["fig",function(){return chart([104,102,100,98,99,97,96,98,101,103,106,108],{lines:[{y:96,c:'b',t:"Limit buy: 96"},{y:92,c:'r',t:"Stop-loss: 92"},{y:108,c:'g',t:"Take profit: 108"}],label:"Entry, stop and target orders"});},"A complete plan on one chart: entry, exit if wrong, exit if right."],
+["warn","A stop-loss is not a guarantee. In a fast market, price can jump past your trigger and fill at a worse price. Size your position with that in mind."],
+["key",["Market = speed. Limit = price. Stop = a trigger.","Slippage is a hidden cost, biggest in thin markets.","Plan three orders before entering: entry, stop, target."]]
+]},
+{t:"Spot vs. futures", m:"6 min read", b:[
+["p","Spot and futures are two different products that happen to show the same price chart. Mixing them up is how beginners lose money they did not know they were risking."],
+["tbl",[["","Spot","Futures"],["What you hold","The actual coin","A contract that tracks the price"],["Leverage","None","Usually available"],["Going short","Not possible","Yes"],["Worst case","You lose what you paid","You lose your margin (liquidation)"],["Extra costs","Trading fees","Trading fees and funding on perpetuals"]]],
+["h","What leverage really is"],
+["p","Leverage lets you control a position bigger than your own money. With 10x leverage, $100 of your own money (called margin) controls a $1,000 position. A 1% move in the price becomes a 10% move on your margin, in either direction."],
+["h","Going short"],
+["p","On spot you can only sell what you own. Futures let you open a short, which profits when the price falls. That is useful, but it also means you can lose money when the price goes up, and a coin can rise much further than you expect."],
+["h","Funding and liquidation"],
+["p","Perpetual futures have no expiry date. To keep their price close to spot, longs and shorts periodically pay each other a funding rate. And if your margin is no longer enough to carry the position, the exchange closes it for you. That is liquidation, and it usually costs you the whole margin."],
+["warn","Futures amplify mistakes. Learning on spot gives you room to make those mistakes cheaply."],
+["key",["Spot = you own the coin. Futures = a leveraged contract.","Leverage multiplies gains and losses equally.","Liquidation closes your position and takes the margin.","Learn on spot first."]]
+]},
+{t:"Reading an order book", m:"5 min read", b:[
+["p","The order book is the live list of everyone’s waiting orders. Bids are buyers who want to buy at or below a price. Asks are sellers who want to sell at or above a price. Your market order meets these orders."],
+["fig",orderbook,"Sellers (red) stack above, buyers (green) below. Bar length shows the size at each price."],
+["h","Spread"],
+["p","The spread is the gap between the best bid and the best ask. If you buy at market and sell right away, you lose about the spread. On busy markets it is tiny. On quiet coins it can be wide, which works like a hidden fee."],
+["h","Depth and liquidity"],
+["p","Depth is how much size sits near the current price. A deep book can absorb a big order without moving the price. A thin book moves quickly, which means more slippage for you and sharper candles on the chart."],
+["h","Why big walls can mislead"],
+["p","A very large order sitting at one price looks like strong support or resistance. But orders can be cancelled in a second. Some traders place large orders to push others’ behavior and then pull them (spoofing, which is illegal on regulated markets). Treat big walls as a clue to check, not as a promise."],
+["tip","Before trading an unfamiliar coin, compare the spread and the depth on two exchanges. Wide spread and thin depth are a reason to use smaller sizes."],
+["key",["Bids = buyers, asks = sellers.","Spread is a hidden cost.","Depth tells you how much slippage to expect.","Large walls can vanish. Do not rely on them alone."]]
+]}
+]},
+{id:"ta", title:"Technical analysis", desc:"Support, resistance, trend and volume, step by step.", lessons:[
+{t:"Support and resistance", m:"6 min read", b:[
+["p","Price does not move randomly between any two numbers. It tends to stall, turn or accelerate around certain areas. Support is an area where buyers have repeatedly stepped in. Resistance is an area where sellers have repeatedly stepped in."],
+["fig",function(){return chart([100,103,106,109,107,103,99,97,100,104,108,109.5,106,101,97.5,98,102,106,109,113],{zones:[{a:108,b:110,c:'r',t:"Resistance zone"},{a:96,b:98,c:'g',t:"Support zone"}],label:"Price bouncing between a support zone and a resistance zone"});},"Price bounced between the two zones until it finally broke above."],
+["h","Zones, not lines"],
+["p","Price rarely turns at an exact number. Mark a zone, a band a little wide, covering the wicks and bodies where reactions happened. This keeps you from calling a level “broken” because of one wick."],
+["h","Why levels work"],
+["p","Many traders look at the same obvious levels. Some have orders waiting there, others remember getting burned there. The more times a level has held, and the clearer it is on higher timeframes, the more attention it gets."],
+["h","Role reversal"],
+["p","When resistance breaks, it often becomes support, and the other way around. Price breaks above a zone, comes back to test it from above, and the old ceiling acts like a floor. Watching that retest is a common way to enter with a clear stop just below the zone."],
+["tip","Start on the daily chart. Mark the obvious zones first, then drop to a lower timeframe to plan the trade. Levels from higher timeframes matter more."],
+["key",["Support = where buyers show up. Resistance = where sellers show up.","Mark zones, not single lines.","Broken levels often flip roles.","Higher timeframes carry more weight."]]
+]},
+{t:"Trends and market structure", m:"6 min read", b:[
+["p","A trend is the direction price has been moving across many candles. Reading it correctly keeps you from fighting the market."],
+["fig",function(){return chart([100,103,101,105,103,108,105,111,108,114,112,118],{label:"An uptrend with higher highs and higher lows"});},"Uptrend: each peak is higher than the last, and each dip stops higher than the last."],
+["p","An uptrend is a series of higher highs and higher lows. A downtrend is a series of lower highs and lower lows. A range is price moving sideways between two levels."],
+["h","Spotting a change"],
+["p","Trends weaken before they reverse. Look for price failing to make a new high, then breaking below the last higher low. That sequence is called a break of structure. It does not mean the trend has reversed, but it means the old plan needs a second look."],
+["fig",function(){return chart([110,114,112,117,114,119,116,115,111,113,108,110,104],{pts:[{i:5,v:121,t:"Last high",a:'e'},{i:9,v:115,t:"Lower high: trend weakens"}],label:"An uptrend losing strength"});},"A lower high followed by a lower low is the first sign of a shift."],
+["h","Timeframes"],
+["p","A coin can be in an uptrend on the daily chart and a downtrend on the 15-minute chart. Pick the timeframe that matches how long you hold trades, and check one higher timeframe for context. If you hold trades for days, the 4-hour and daily charts matter most."],
+["tip","Trade with the trend of the timeframe you hold. Trades against it need a stronger reason and a smaller size."],
+["key",["Uptrend = higher highs and higher lows.","Downtrend = lower highs and lower lows.","A lower high plus a lower low is an early warning.","Check one higher timeframe before every trade."]]
+]},
+{t:"Volume: what it confirms", m:"5 min read", b:[
+["p","Volume is the amount traded during each candle. It does not tell you the direction. It tells you how many people were behind a move."],
+["fig",function(){return chart([100,101,100,102,101,102,101,103,102,104,109,112],{vol:[30,25,28,22,26,20,24,22,25,28,70,80],pts:[{i:10,v:109,t:"Breakout on big volume",a:'e'}],label:"Price breakout with a volume spike"});},"The jump came with much higher volume than the candles before it."],
+["h","Confirmation"],
+["p","A breakout above resistance on strong volume is more believable than one on thin volume. Many participants agreed with the move, and fewer are likely to sell into it right away. A breakout on weak volume fails more often."],
+["h","When volume disagrees"],
+["p","If price makes a new high but volume is lower than on the previous high, fewer people are pushing it. That does not mean it will drop, only that the move is less supported. Combine it with a level or a trend, never use it alone."],
+["warn","Crypto volume can be inflated by wash trading on some venues. Prefer large, well-known exchanges, and compare volume on more than one of them."],
+["key",["Volume = how many people stood behind a move.","Breakouts with high volume are more reliable.","Falling volume on a new high is a caution sign.","Use it together with levels and trend."]]
+]},
+{t:"Moving averages without the hype", m:"5 min read", b:[
+["p","A moving average smooths price into one line by averaging the last N candles. Because it uses past prices, it always lags. That is a feature and a flaw."],
+["fig",function(){return chart([100,102,101,104,103,106,105,108,106,109,111,110,113,111,108,106,107,104,102,103,100,99,101,98],{sma:5,label:"Price with a 5-period moving average"});},"The blue line is a 5-period average. It turned down only after price had already fallen."],
+["h","SMA vs. EMA"],
+["p","A simple moving average (SMA) gives every candle the same weight. An exponential moving average (EMA) gives recent candles more weight, so it reacts faster but also gets fooled more often."],
+["h","Common settings"],
+["ul",["20: short-term direction","50: medium-term trend","200: long-term trend"]],
+["p","These numbers are popular habits, not laws of nature. Popular simply means many traders watch them."],
+["h","Crossovers"],
+["p","When a faster average crosses above a slower one, some traders read it as a buy signal. In a trend this can work. In a sideways market it fires over and over, and each signal loses a little. That is called whipsaw."],
+["warn","A moving average is a lens for the trend, not a buy or sell button. Use it as context next to levels and volume."],
+["key",["A moving average smooths price and lags it.","EMA reacts faster than SMA.","Crossovers fail often in sideways markets.","Use it for context, not as a signal."]]
+]}
+]},
+{id:"risk", title:"Risk management", desc:"The part nobody wants to learn, and the part that keeps you in the game.", link:"https://www.babypips.com/crypto/learn/risk-management-concepts-crypto-traders-should-know", lessons:[
+{t:"Position size: the 1% rule", m:"6 min read", link:"https://www.babypips.com/crypto/learn/risk-management-concepts-crypto-traders-should-know", ll:"Read more: risk management (BabyPips)", b:[
+["p","Most beginners decide how many coins to buy by feeling. Professionals decide how much to lose first. The size of the position comes out of that number."],
+["h","The idea"],
+["p","Before entering, choose the amount you accept losing if the trade fails. A common rule is 1% of your account. Then place your stop where the idea is proven wrong, and calculate the size so that hitting the stop costs exactly that amount."],
+["fig",function(){return chart([92,94,93,96,98,97,99,100],{zones:[{a:100,b:110,c:'g',t:"Target: +$10 per coin"},{a:95,b:100,c:'r',t:"Risk: $5 per coin"}],lines:[{y:100,c:'b',t:"Entry: $100"}],label:"Entry, stop and target with risk and reward zones"});},"Entry at $100, stop at $95, target at $110."],
+["tbl",[["Step","Example"],["Account","$1,000"],["Risk per trade (1%)","$10"],["Entry / stop","$100 / $95"],["Loss per coin at stop","$5"],["Position size","$10 ÷ $5 = 2 coins ($200)"]]],
+["p","Notice what happens with a wider stop. If your stop has to be at $90, the loss per coin is $10, so the same $10 risk allows only 1 coin. The stop decides the size, not the other way around."],
+["h","Why 1% and not 10%"],
+["p","Ten losses in a row happen to everybody sooner or later. At 1% risk, that costs about 9.6% of your account. At 10% risk per trade, the same streak costs about 65%. A small risk keeps you in the game long enough for your skill to matter."],
+["warn","Fees and slippage make your real loss a little bigger than planned. Leave a margin for them."],
+["key",["Choose the loss first, then calculate the size.","Size = amount at risk ÷ distance to the stop.","A wider stop means a smaller position.","1% risk makes a losing streak survivable."]]
+]},
+{t:"Where to put a stop-loss", m:"6 min read", link:"https://cointelegraph.com/markets/trading-bitcoin-is-hard-10-things-every-beginner-trader-must-know", ll:"Read more: 10 things every beginner trader must know (Cointelegraph)", b:[
+["p","A stop-loss is not a random percentage. It is the price where your trade idea is proven wrong. If you bought because a level should hold, the stop belongs where the level has clearly failed."],
+["fig",function(){return chart([110,106,102,98,100,104,107,105,102,99,101,105,108,106,103],{lines:[{y:103,c:'b',t:"Entry: 103"},{y:96,c:'r',t:"Stop: below the swing lows"}],label:"A stop placed below two swing lows"});},"Two swing lows near 98. The stop sits just beneath them."],
+["h","Invalidation"],
+["p","Ask one question: at what price would I admit the idea was wrong? For a long trade that is often just below the last swing low or the support zone. If you cannot name that price, you do not have a trade yet."],
+["h","A buffer for noise"],
+["p","Price wiggles. A stop sitting exactly on the obvious low is easy to tag by accident. Many traders add a small buffer based on recent volatility (for example, the Average True Range, ATR) so ordinary noise does not stop them out."],
+["h","Too tight and too wide"],
+["ul",["Too tight: normal moves hit it, and you lose small amounts again and again.","Too wide: one loss is too big for your position size.","If the logical stop is too far, make the position smaller or skip the trade."]],
+["warn","Never move a stop further away after you enter. That turns a planned loss into an open-ended one. A stop you only plan to “honor in your head” is not a stop."],
+["key",["The stop goes where the idea is proven wrong.","Use a buffer for normal noise.","If the stop is too far, reduce the size, not the stop.","Never widen a stop after entry."]]
+]},
+{t:"Risk/reward in plain numbers", m:"5 min read", link:"https://academy.blackbull.com/crypto/beginner-crypto-tutorial/risk-management-3", ll:"Read more: risk management tutorial (BlackBull Academy)", b:[
+["p","Risk/reward compares what you could lose with what you aim to gain. Call the amount you risk 1R. If your target is three times the risk, that is a 1:3 trade, or +3R."],
+["fig",function(){return chart([96,98,97,99,100],{zones:[{a:100,b:109,c:'g',t:"Reward: +3R"},{a:97,b:100,c:'r',t:"Risk: -1R"}],lines:[{y:100,c:'b',t:"Entry"}],label:"A 1:3 trade setup"});},"Risk 3 points to make 9 points: a 1:3 setup."],
+["h","What win rate do you need?"],
+["p","The better the reward compared with the risk, the less often you have to be right. These are break-even rates before fees:"],
+["tbl",[["Risk:reward","Win rate to break even"],["1:1","50%"],["1:2","33%"],["1:3","25%"],["1:5","17%"]]],
+["p","Example: you risk $10 per trade at 1:3. You win 3 of 10 trades and lose 7. Wins give 3 × $30 = $90, losses cost 7 × $10 = $70. Net +$20, even though you were wrong most of the time."],
+["h","Fees and slippage"],
+["p","Costs reduce your wins and add to your losses. On a tight trade with a small target they can eat a large share of the reward. Include them when you calculate the ratio."],
+["tip","Skip trades where the reward is not clearly bigger than the risk. Waiting for a better setup is a trade decision, too."],
+["key",["1R = the amount you risk on one trade.","Higher reward/risk means you can be right less often.","Break-even win rate = 1 ÷ (1 + reward/risk).","Count fees and slippage."]]
+]},
+{t:"Why leverage ends accounts", m:"6 min read", b:[
+["p","Leverage does not change how good your idea is. It changes how little room the idea has to be wrong."],
+["fig",function(){return chart([100,99,100,98,97,95,96,93,92,91,90,89],{lines:[{y:100,c:'b',t:"Entry: 10x long"},{y:90.5,c:'r',t:"About where liquidation hits"}],label:"A 10x long position approaching liquidation"});},"With 10x leverage, a move of roughly 10% against you can end the position."],
+["tbl",[["Leverage","Approx. move that wipes out margin"],["2x","about 50%"],["5x","about 20%"],["10x","about 10%"],["25x","about 4%"],["50x","about 2%"],["100x","about 1%"]]],
+["p","These are rough numbers. Real liquidation comes a little earlier because of fees and maintenance margin. On a market that moves 3 to 5% in an ordinary day, 25x and above leaves almost no room."],
+["h","Liquidation vs. stop-loss"],
+["p","A stop-loss exits the trade at a loss you planned. Liquidation exits it at a loss the exchange decides, and it takes the margin. Your stop should always trigger well before liquidation."],
+["h","A safer way to think about leverage"],
+["p","Pick your size from your stop and your 1% risk, as in the position-size lesson. Leverage is then just a way to put up less margin for that same position. It is not a license to make the position bigger."],
+["warn","Raising leverage after a loss to “win it back” is how a small loss becomes a blown account."],
+["key",["Higher leverage = smaller room for error.","Liquidation is not a stop-loss. It takes the margin.","Size by your stop, not by the leverage you can get.","Keep leverage low, or stay on spot."]]
+]}
+]},
+{id:"psych", title:"Trading psychology", desc:"FOMO, revenge trades and how to slow down.", lessons:[
+{t:"Why we buy tops", m:"5 min read", b:[
+["p","Most traders do not lose because they lack information. They lose because they act on emotion. The classic example is buying near the top."],
+["fig",emotions,"A typical emotional cycle. The most expensive feelings arrive near the top and the bottom."],
+["h","How it happens"],
+["p","Price rises for days. Social feeds fill with screenshots of profits. Fear of missing out (FOMO) builds until buying feels more painful than not buying. You enter late, price stalls, and the same feelings flip into panic."],
+["h","What to do instead"],
+["ul",["Write down entry criteria before price moves. If it is not on the list, it is not a trade.","If a coin is already up sharply with no plan, wait for a pullback to a level, or skip it.","Use the 15-minute rule: when you feel the urge to buy right now, wait 15 minutes and re-read your plan."]],
+["tip","There will always be another trade. Missing a move costs you nothing. Chasing one can cost a lot."],
+["key",["FOMO pushes people to buy late.","Decide entries in advance, in writing.","Missing a move costs nothing.","A short pause is a free risk control."]]
+]},
+{t:"Revenge trading", m:"5 min read", b:[
+["p","After a loss, many traders feel an urge to win the money back right now. That urge is revenge trading, and it is one of the fastest ways to turn one small loss into several."],
+["h","The math is against you"],
+["p","The deeper the loss, the bigger the gain needed to get back to even:"],
+["tbl",[["Loss","Gain needed to recover"],["10%","11%"],["25%","33%"],["50%","100%"],["75%","300%"],["90%","900%"]]],
+["h","The spiral"],
+["p","You lose, then you size up to recover, skip your checklist, and enter a weaker setup. It loses, and the next one is bigger. The plan you made while calm is gone."],
+["h","Circuit breakers"],
+["ul",["A daily loss limit, for example 2 losing trades or 3% of the account.","A maximum number of trades per day.","A mandatory 30-minute break after any stop-out.","No new trades until you have written down what happened in your journal."]],
+["tip","Decide these limits when you are calm and write them down. In the heat of a loss, you will not set them fairly."],
+["key",["Revenge trading means sizing up and skipping your plan.","Deep losses need much bigger gains to recover.","Use daily limits and forced breaks.","Journal first, trade later."]]
+]},
+{t:"A pre-trade checklist", m:"4 min read", b:[
+["p","A checklist takes under a minute and filters out most impulsive trades. Pilots and surgeons use them for the same reason: when stress is high, memory is unreliable."],
+["h","The five questions"],
+["ul",["What is my reason for this trade, in one sentence?","Where is my stop, and why there?","How big is my position, given 1% risk?","What is my target, and is the reward clearly bigger than the risk?","Does this match a setup in my written plan?"]],
+["h","Make it physical"],
+["p","Keep the list in a note on your phone and answer in writing every time. Typing the answers forces you to slow down. If you notice you are skipping the list, that is itself a signal that emotions are in charge."],
+["h","The skip rule"],
+["p","If you cannot answer all five, you do not trade. No exceptions for “this one looks perfect”. Setups that look perfect and break the rules are exactly the ones that hurt."],
+["key",["Five questions: reason, stop, size, target, plan.","Answer in writing.","No answer = no trade.","Skipping the list is a warning sign."]]
+]},
+{t:"Taking a break", m:"4 min read", b:[
+["p","Tiredness, stress, and winning or losing streaks all change how you decide. Many bad trades happen not because of bad analysis but because of a bad day."],
+["h","Signs you need a break"],
+["ul",["You check the chart every few minutes.","You feel angry, anxious or euphoric.","You are trading to “make up” for something.","You have broken your own rules twice in one day."]],
+["h","The market never closes, you do"],
+["p","Crypto trades 24/7, but you do not have to. Decide when you will look at charts, for example once or twice a day. Use price alerts at your levels and let the market come to you."],
+["h","Sleep is part of the system"],
+["p","Late-night trading on a tired mind is a common source of errors. If a position is so large that you cannot sleep, it is too large."],
+["tip","After a big win or a big loss, take the rest of the day off. Both distort judgment."],
+["key",["Emotional extremes are a signal to stop.","Use alerts instead of watching charts.","Do not trade tired.","Fewer, better trades beat constant screen time."]]
+]}
+]},
+{id:"journal", title:"Trade journal breakdowns", desc:"Real losing trades, taken apart honestly.", lessons:[
+{t:"How to keep a journal", m:"5 min read", b:[
+["p","A journal turns every trade, winning or losing, into data. Without it you remember the exciting trades and forget the pattern."],
+["h","What to record"],
+["tbl",[["Field","Example"],["Date / market","Oct 12, BTC/USDT"],["Side","Long"],["Entry / stop / target","100 / 95 / 110"],["Size / risk","2 coins / $10 (1R)"],["Reason","Retest of broken resistance"],["Result","-1R (stopped out)"],["Feeling","Rushed, afraid to miss it"]]],
+["p","Add a screenshot of the chart at entry and at exit. Later you will see what you really saw at the time, not what you remember."],
+["h","Review rhythm"],
+["p","Write the entry before the trade and the result right after. Once a week, read the last 5 to 10 entries. Look for repeats: the same setup, the same time of day, the same emotion."],
+["tip","Record your feelings. They are the most useful column. Patterns like “always rushed on losers” show up fast."],
+["key",["Log entry, stop, target, size, reason, result and feeling.","Add chart screenshots.","Review once a week.","Look for repeated mistakes, not single outcomes."]]
+]},
+{t:"Breakdown: a stop hunted", m:"5 min read", b:[
+["p","(Illustrative example. Replace it with one of your own trades before you publish.)"],
+["p","A long entry near a support zone, with the stop placed just under the obvious low. Price dipped briefly below that low, hit the stop, and then turned up and rallied."],
+["fig",function(){return chart([105,103,101,100,102,101,100.5,103,105,107],{lo:{6:97.5},lines:[{y:100,c:'g',t:"Support"},{y:99,c:'r',t:"My stop"}],pts:[{i:6,v:97.5,t:"Wick takes the stop",a:'e'}],label:"A wick just below support hits a stop before price reverses"});},"The idea was right. The stop was in the most obvious place."],
+["h","What went wrong"],
+["p","Many traders put stops at the same obvious spot, just under a clear low. Price often probes that area. The idea (support holds) was correct, but the stop was too close to the line."],
+["h","What to change"],
+["ul",["Place the stop a bit beyond the level, using the volatility buffer.","Use a smaller position to keep the same 1% risk with the wider stop.","Ask whether the entry was too early. Waiting for a close back above the level might have given a better price."]],
+["key",["A right idea can still lose on a bad stop.","Obvious stop spots get tested.","Wider stop + smaller size keeps risk the same.","Write down what you would do differently."]]
+]},
+{t:"Breakdown: a trade I should have skipped", m:"5 min read", b:[
+["p","(Illustrative example. Replace it with one of your own trades before you publish.)"],
+["p","Price had already run up for ten candles in a row. There was no pullback, no clear level to put a stop under, and the only reason to enter was fear of missing out. The trade lost 1R."],
+["fig",function(){return chart([100,102,105,109,114,119,123,126,128,129],{pts:[{i:9,v:129,t:"Late entry, no clear stop",a:'e'}],label:"A long run with no pullback before the entry"});},"A long run with no pullback leaves nowhere logical for a stop."],
+["h","The red flags"],
+["ul",["No clear level for the stop.","Price far from any support or moving average.","The reason for entry is a feeling, not a rule.","Social feeds are loud about the same coin."]],
+["h","The lesson"],
+["p","If you cannot define the stop and the reason before you enter, the setup is not ready. Skipping a trade is a decision too, and it is free. You can enter later on a pullback with a defined stop, or not at all."],
+["key",["No clear stop = no trade.","Entries driven by FOMO are the costly ones.","Skipping costs nothing.","Wait for a pullback to a level."]]
+]},
+{t:"Reviewing a month of trades", m:"5 min read", b:[
+["p","At the end of each month, step back from single trades and look at the whole set. Here is a simple summary, with example numbers:"],
+["tbl",[["Metric","Example"],["Trades","22"],["Winners","9 (41%)"],["Average win","+2.1R"],["Average loss","-1.0R"],["Net result","+5.9R"],["Most common mistake","Moved the stop (3 times)"]]],
+["p","Net result: 9 × 2.1R = +18.9R from winners, 13 × 1R = -13R from losers. A 41% win rate was still profitable because wins were bigger than losses."],
+["h","Questions to ask"],
+["ul",["Which setup produced most of my profit?","Which mistake cost the most?","Did I follow the plan on my best trades? On my worst?","Did my results match what the checklist predicted?"]],
+["h","One change at a time"],
+["p","Pick the single rule you broke most often and make one change for next month. Do not try to fix everything at once. Compare results against your plan, not against how much the market moved."],
+["key",["Review the whole month, not single trades.","Track win rate, average win, average loss and mistakes.","Win rate alone does not tell you profit.","Change one thing at a time."]]
+]}
+]}
+];
+// ====== EXTRA HELPERS ======
+COL.a = '#E0A030';
+function shapes(){
+  var g = COL.g, r = COL.r, h = 'var(--hint)';
+  var s = '<svg viewBox="0 0 360 200" role="img" aria-label="Four common candle shapes: doji, hammer, shooting star, marubozu">';
+  s += '<line x1="45" x2="45" y1="30" y2="140" stroke="' + h + '" stroke-width="3"/><rect x="33" y="84" width="24" height="4" fill="' + h + '"/>';
+  s += '<line x1="135" x2="135" y1="40" y2="140" stroke="' + g + '" stroke-width="3"/><rect x="123" y="40" width="24" height="26" fill="' + g + '"/>';
+  s += '<line x1="225" x2="225" y1="30" y2="142" stroke="' + r + '" stroke-width="3"/><rect x="213" y="116" width="24" height="26" fill="' + r + '"/>';
+  s += '<rect x="303" y="30" width="24" height="110" fill="' + g + '"/>';
+  [[45,'Doji','indecision'],[135,'Hammer','low rejected'],[225,'Shooting star','high rejected'],[315,'Marubozu','strong push']].forEach(function(t){
+    s += '<text x="' + t[0] + '" y="164" text-anchor="middle" style="fill:var(--text)">' + t[1] + '</text><text x="' + t[0] + '" y="182" text-anchor="middle">' + t[2] + '</text>';
+  });
+  return s + '</svg>';
+}
+function bars(rows, label){
+  var W = 360, rh = 30, H = rows.length * rh + 8, mx = Math.max.apply(null, rows.map(function(r){ return r[1]; }));
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">';
+  rows.forEach(function(r, i){
+    var y = 6 + i * rh, w = Math.max(3, r[1] / mx * 190);
+    s += '<text x="6" y="' + (y + 15) + '" style="fill:var(--text)">' + r[0] + '</text><rect x="100" y="' + y + '" width="' + w.toFixed(1) + '" height="20" rx="3" fill="' + COL[r[2]] + '"/><text x="' + (100 + w + 6).toFixed(1) + '" y="' + (y + 15) + '" style="fill:var(--text)">' + r[3] + '</text>';
+  });
+  return s + '</svg>';
+}
+var EXTRA = {};
+
+EXTRA.basics = [
+{ m:"9 min read",
+ pre:[["story","Maria’s first chart (fictional)","Maria opens a chart for the first time, sees a big red candle and sells in a panic. An hour later she zooms out: that red candle was a tiny dip inside a steady daily uptrend. Nothing about the candle was wrong. She was just looking at the wrong zoom, with no plan."]],
+ add:[
+ ["h","Candle shapes worth knowing"],
+ ["fig",shapes,"Four shapes you will see all the time. None is a signal on its own."],
+ ["ul",["Doji: the open and close are almost equal. Buyers and sellers cancelled each other out.","Hammer: small body on top, long lower wick. Sellers pushed down, buyers took it back.","Shooting star: small body at the bottom, long upper wick. Buyers pushed up, sellers took it back.","Marubozu: big body, almost no wicks. One side controlled the whole period."]],
+ ["p","The same shape means different things in different places. A hammer after a long drop, near a level you marked, is worth a look. A hammer in the middle of a sideways mess is noise."],
+ ["h","Timeframes change the story"],
+ ["p","Zoom out and a scary drop can shrink into a pullback. Zoom in and a calm day can hide violent swings. Neither view is wrong; they answer different questions. A rule many traders use: look at the timeframe above the one you trade, to see the bigger direction, and the one below, to fine-tune the entry."],
+ ["h","Three questions for every chart"],
+ ["ul",["Which timeframe am I on, and does it match how long I hold trades?","Where is price compared with recent highs and lows?","What did the last 3 to 5 candles do compared with the ones before?"]],
+ ["myth","Green candles mean you should buy.","A green candle only says price closed higher than it opened in that period. It says nothing about the next one."],
+ ["do","Open the daily chart of any big coin. Find five hammers or shooting stars. For each one, write down what happened in the next three candles. You will quickly see that shapes alone are unreliable, and that location is what matters."]
+ ],
+ q:[
+ ["What does the body of a candle show?",["The highest and lowest price","The move from open to close","The trading volume","The average price"],1,"The body spans open to close. The wicks show the highest and lowest prices."],
+ ["A candle has a long lower wick. What does it suggest?",["Sellers pushed the price down, but buyers pushed it back up","The price will surely rise next","Nobody traded","It is a data error"],0,"It shows rejection of lower prices. It is a clue, not a guarantee of what comes next."],
+ ["How can a red 5-minute candle sit inside a green daily candle?",["It is an exchange error","Different timeframes cover different periods","Colors are random","Daily candles ignore short moves"],1,"A 5-minute candle covers five minutes, a daily candle covers a whole day. They answer different questions."],
+ ["What is the sensible way to use a hammer candle?",["Buy every time you see one","Treat it as a clue and check the location and the next candles","Ignore all candles","Sell everything"],1,"Shapes only become useful together with a level, a trend and confirmation."]
+ ]},
+{ m:"9 min read",
+ pre:[["story","The market order that cost 4% (fictional)","Tom wants a small altcoin he sees at $1.00. He puts in a market order for $2,000. The order book is thin, so his order eats through several price levels and fills at an average of about $1.04. He paid roughly $80 more than he planned, before he even started. A limit order at $1.00 would have filled slowly or not at all, but it would never have cost him that."]],
+ add:[
+ ["h","Which order, when?"],
+ ["ul",["Entering when you are not in a hurry: limit order.","Entering a breakout once price moves through a level: stop order (a buy-stop above the level).","Exiting a losing trade: stop-loss.","Taking profit at a target: limit sell.","Exiting urgently: market order, and accept the slippage."]],
+ ["h","Stop-market vs. stop-limit"],
+ ["p","Both wait for a trigger price. A stop-market then sends a market order: you almost certainly get out, but the price may be worse than the trigger. A stop-limit sends a limit order instead: you control the worst price, but in a fast drop price can jump over your limit and leave you still in the trade. There is no perfect option. Many traders use stop-market for protection and stop-limit only when they accept the risk of not being filled."],
+ ["h","Time in force, in one minute"],
+ ["ul",["GTC (good till cancelled): the order stays until you cancel it.","IOC / FOK: fill immediately (all or part for IOC, all or nothing for FOK) or cancel.","Post-only: the order only goes on the book. If it would fill right away, it is cancelled, so you always pay the lower maker fee."]],
+ ["h","Why fees matter more than they look"],
+ ["p","Take illustrative fees of 0.10% for takers and 0.06% for makers on a $1,000 trade: $1.00 vs $0.60. That is $0.40 per trade. After 200 trades in a year, that is about $80, with no market view involved. Check the real fee table of your exchange and any discounts available."],
+ ["myth","A stop-loss guarantees my exit price.","A stop guarantees that an order is sent when your trigger is touched. The price you get depends on the market at that moment."],
+ ["do","Open your exchange’s order form (use a demo account if it has one). Find where market, limit and stop orders live. Place a limit buy far below the current price, look at how it sits in the order book, then cancel it. Ten minutes now saves you a mistake with real money later."]
+ ],
+ q:[
+ ["What does a limit order guarantee?",["That it will be filled","Your price or better, but not that it fills","The fastest possible execution","No fees"],1,"A limit order controls the price. It might never fill if the market does not reach it."],
+ ["What is slippage?",["A trading fee","The gap between the expected price and the price you got","An exchange outage","A type of stop"],1,"Slippage is the difference between where you expected to trade and where you actually did."],
+ ["Which order exits a long position if price falls to a chosen level?",["Limit buy","Stop-loss","Market buy","Post-only"],1,"A stop-loss is triggered when price reaches your level, and then closes the trade."],
+ ["What is the main downside of a stop-limit order in a fast drop?",["It always fills at a worse price","It may not fill at all","It costs double","It cancels your history"],1,"If price jumps past your limit, the order can sit unfilled and leave you in the trade."]
+ ]},
+{ m:"9 min read",
+ pre:[["story","Two accounts, one idea (fictional)","Anna and Ben both think BTC will rise and put the same $1,000 position on. Anna buys spot. Ben opens a 10x futures long with $100 of margin. Price falls 11%. Anna is down $110 and still holds her coins, free to wait or sell. Ben was liquidated near -10%: his $100 margin is gone and the trade is closed. The rebound the next week helped Anna. Ben missed it, because he was no longer in the trade."]],
+ add:[
+ ["h","Why people use futures at all"],
+ ["p","Futures have real uses: hedging a bag of coins you do not want to sell, profiting from a falling market, and putting up less capital for the same exposure. The tool is fine. The problem begins when it is used to take bigger positions than your risk plan allows."],
+ ["h","Isolated vs. cross margin"],
+ ["p","With isolated margin, only the margin you assigned to that position is at risk. If it is liquidated, the rest of your account stays safe. With cross margin, the position can draw on your whole account balance to stay alive, so one bad trade can use up everything. Beginners should prefer isolated."],
+ ["h","Funding rate in plain words"],
+ ["p","Perpetual futures have no expiry, so exchanges use a funding rate to keep their price near the spot price. When the rate is positive, longs pay shorts at regular intervals, and the other way around when it is negative. Illustration: 0.01% every 8 hours on a $1,000 position is $0.10 per payment, about $0.30 a day, about $9 a month. Small on its own, but it adds up if you hold a trade for weeks."],
+ ["tbl",[["Question","Spot","Futures"],["Can I hold it for years?","Yes","Costs funding, may be liquidated"],["Can I lose more than the position?","No","Margin only (isolated), more risk (cross)"],["Can I profit from a fall?","No","Yes, via shorts"]]],
+ ["myth","Futures always make more money than spot.","Leverage multiplies results in both directions. Over time it multiplies mistakes more reliably than it multiplies skill."],
+ ["do","Write down which product you will use for the next three months and why. If the honest answer is “to make more money faster”, stay on spot for now."]
+ ],
+ q:[
+ ["On spot, what is the most you can lose on a coin you bought?",["Unlimited","The amount you paid","Twice the amount","10%"],1,"A coin cannot go below zero, so a spot buy risks at most what you paid."],
+ ["What does liquidation mean?",["You withdrew your funds","The exchange closes your leveraged position because margin is no longer enough","Your order was cancelled","The coin was delisted"],1,"When margin cannot cover the loss, the exchange closes the position and the margin is lost."],
+ ["Funding on perpetual futures is…",["A one-time fee","A periodic payment between longs and shorts","A tax","A bonus from the exchange"],1,"It keeps the futures price close to spot. Which side pays depends on the rate."],
+ ["With isolated margin, what is at risk in that position?",["Only the margin assigned to it","Your entire account","Nothing","Only your profits"],0,"Isolated margin limits the loss to the margin you assigned."]
+ ]},
+{ m:"8 min read",
+ pre:[["story","The wall that disappeared (fictional)","Lena sees a huge buy order sitting at $98 and thinks, “that’s strong support”. She buys at $98.50. A few seconds later the big order vanishes, because its owner cancelled it. Price slides $2 in minutes. The wall was never a promise; it was just an order."]],
+ add:[
+ ["h","The depth chart"],
+ ["p","Many platforms show a depth chart next to the order book. It adds up the orders: bids on the left, asks on the right. A steep slope near the price means lots of size close by. A flat slope means thin liquidity, and a market order will push price further."],
+ ["h","Bid/ask imbalance"],
+ ["p","If there is much more size on the bid side than on the ask side near the price, some traders read it as buying interest. Treat it as a weak hint: orders change within seconds, and some are placed to look bigger than the real intention."],
+ ["fig",function(){return bars([["Coin A",200,"g","$2.0M"],["Coin B",30,"h","$300K"],["Coin C",4,"r","$40K"]],"Depth within 1% of price for three coins");},"Illustrative depth within 1% of price. A $10,000 market order is tiny for coin A and a quarter of the whole near depth for coin C."],
+ ["h","A routine before every trade"],
+ ["ul",["Check the spread. Is it a fraction of a percent or several?","Compare your order size with the depth within 1% of the price.","In thin books, use limit orders and consider splitting a big order into parts.","Check the same coin on a second exchange before trusting the numbers."]],
+ ["myth","The biggest order in the book shows where price must go.","It shows where one participant has an order right now. It can be cancelled, hidden or filled in seconds."],
+ ["do","Pick three coins of different size (one major, one mid-size, one small). Note the spread and the visible depth near the price for each. Write down which of them you would trade with a market order, and why."]
+ ],
+ q:[
+ ["What is the spread?",["The difference between the best bid and the best ask","A trading fee","Daily volume","The 24-hour price change"],0,"The spread is the gap between the best price to sell and the best price to buy."],
+ ["A very large order sitting at one price should be treated as…",["Guaranteed support","A clue that may vanish","Irrelevant","A signal to short"],1,"Orders can be cancelled any time. Use big walls as a hint, not as a promise."],
+ ["In a thin order book, a big market order will most likely…",["Fill at one price","Suffer more slippage","Be cancelled","Pay no fees"],1,"The order eats through several price levels, so the average price gets worse."],
+ ["Which order type helps you control the price in a thin market?",["Market order","Limit order","None","Liquidation"],1,"A limit order sets the worst price you accept."]
+ ]}
+];
+
+EXTRA.ta = [
+{ m:"9 min read",
+ pre:[["story","The line that wasn’t (fictional)","A trader draws a thin line at exactly 100. Price pokes up to 100.8, “breaks” the line, and he shorts the move. Price falls back and then runs far higher. The level was never a line; it was a zone from about 99 to 101. One wick had fooled a line, but not the zone."]],
+ add:[
+ ["h","How to mark levels, step by step"],
+ ["ul",["Start on the daily chart and zoom out so you see months of data.","Mark places where price reversed at least twice (swing highs and swing lows).","Draw each level as a band that covers the wicks and bodies of those reactions.","Keep only the clearest three to five zones above and below the current price.","Delete anything that does not clearly matter. A cluttered chart is a weak chart."]],
+ ["h","False breakouts"],
+ ["p","Price often pokes through a zone and then closes back inside it. That is a false breakout. A simple filter many traders use is to wait for a candle to close beyond the zone before believing the break. The price you pay is a worse entry. The benefit is fewer fakeouts. Decide your rule in advance, and stick to it."],
+ ["fig",function(){return chart([100,103,106,108,106,104,106,108,107,105,103,101],{hi:{8:112},zones:[{a:108,b:110,c:'r',t:"Resistance zone"}],pts:[{i:8,v:112,t:"False breakout: back inside",a:'e'}],label:"A wick above resistance closes back inside the zone"});},"The wick went above the zone, but the candle closed back inside it, and price then fell."],
+ ["h","Round numbers"],
+ ["p","Prices like 100, 50,000 or 1.00 attract orders because people like round numbers. Take-profit orders, stops and alerts cluster around them. They often work as levels without needing any past history."],
+ ["myth","A level holds forever once it has held a few times.","Levels are areas of interest, not walls. Each test is a chance for the level to break."],
+ ["do","Open the daily chart of BTC and mark the five clearest zones. Save a screenshot. A week later, check how many held and how many broke. Note the ones that broke, and what they had in common."]
+ ],
+ q:[
+ ["Support is…",["An area where sellers dominate","An area where buyers have repeatedly stepped in","A moving average","A volume level"],1,"Support is where buying interest has repeatedly appeared. Resistance is its mirror image."],
+ ["Why mark zones instead of exact lines?",["Price rarely turns at an exact number","It looks nicer","Exchanges require it","Indicators need it"],0,"Wicks and noise mean reactions happen across a band, not at one number."],
+ ["When broken resistance later acts as support, it is called…",["Role reversal","Slippage","Liquidation","Divergence"],0,"Old resistance often becomes new support after a break and retest."],
+ ["A false breakout is…",["A breakout that holds","Price moving past a level and quickly closing back inside","A broken exchange","A low-volume day"],1,"Price moves beyond the level but cannot stay there, which often traps traders."]
+ ]},
+{ m:"9 min read",
+ pre:[["story","Fighting the current (fictional)","Sam shorts every small dip on the 15-minute chart, while the daily chart is in a clear uptrend. He wins four small trades. Then the uptrend pushes through and one big loss erases all four wins and more. His 15-minute analysis was fine. He was trading against the bigger direction and did not know it."]],
+ add:[
+ ["h","Trend lines and channels"],
+ ["p","A trend line connects two or more higher lows in an uptrend (or lower highs in a downtrend). Two points draw the line; a third touch makes it more convincing. A parallel line on the other side makes a channel. When price breaks the line, it is a hint that the trend is changing, not a proof."],
+ ["h","Ranges"],
+ ["p","Not everything trends. A range is price moving sideways between a floor and a ceiling. In a range, trend tools like moving averages work badly, and levels work well. Beginners can either trade the edges with tight stops or wait for a clear breakout. Doing nothing is also a position."],
+ ["fig",function(){return chart([100,104,101,105,100,104,101,105,100,104,101,106],{zones:[{a:104,b:105.5,c:'r',t:"Range top"},{a:99.5,b:101,c:'g',t:"Range bottom"}],label:"Price moving sideways in a range"});},"A range: price bounces between a floor and a ceiling until it breaks out."],
+ ["h","A simple trend checklist"],
+ ["ul",["What is the direction on the higher timeframe (daily or 4-hour)?","Are swings making higher highs and higher lows, or the opposite?","Is price near a level where the trend could stall?","Does the trade I am planning go with the trend, or against it?"]],
+ ["myth","The trend is my friend, so I should buy every dip.","Dips in a downtrend are just the trend continuing. Always check that the trend is still intact before buying a dip."],
+ ["do","Pick three coins. For each, write the trend on the daily and on the 4-hour chart (up, down or range). Note any where the two disagree. Those are the ones that need smaller size or a pass."]
+ ],
+ q:[
+ ["An uptrend is defined as…",["Higher highs and higher lows","Lower highs and lower lows","Sideways price","High volume"],0,"An uptrend is a sequence of higher highs and higher lows."],
+ ["What is a break of structure in an uptrend?",["Price breaks below the last higher low","An exchange outage","A volume spike only","A moving average crossover"],0,"Breaking the last higher low is the first sign that the uptrend may be changing."],
+ ["Which statement is true?",["Timeframes always agree","A coin can be up on the daily chart and down on the 15-minute chart","Trends only exist on the 1-hour chart","Trends never change"],1,"Different timeframes can show different trends at the same time."],
+ ["In a range, a sensible approach is…",["Assume it will break up","Trade near the edges with tight stops, or wait for a breakout","Ignore levels","Use maximum leverage"],1,"Ranges respect levels. Edges give clear stops, and waiting is also a choice."]
+ ]},
+{ m:"8 min read",
+ pre:[["story","The quiet breakout (fictional)","A coin breaks above a well-known level. The candle is green and looks great, but volume is below average. Within a day, price is back under the level and the traders who bought the breakout are stopped out. The chart looked right. The participation was missing."]],
+ add:[
+ ["h","Relative volume"],
+ ["p","The raw number of volume means little on its own. Compare each candle with the recent average, for example the last 20 candles. A candle with twice the average volume is worth noticing. A move on half the average volume is a move few people care about."],
+ ["h","Volume at levels"],
+ ["p","When price reaches a support or resistance zone on rising volume, a lot of participants are making decisions right there. The result (hold or break) tends to be more meaningful than the same event on thin volume."],
+ ["h","Climax volume"],
+ ["fig",function(){return chart([100,102,104,107,111,116,122,128,127,123,118,114],{vol:[20,22,25,30,40,55,75,110,85,60,45,35],pts:[{i:7,v:128,t:"Volume climax",a:'e'}],label:"A strong rally ending on a volume spike"});},"After a long rise, a huge volume spike can mark exhaustion: everyone who wanted to buy already has."],
+ ["p","A volume climax at the end of a big move can signal that the move is running out of fuel. It is not a rule. It is a reason to tighten your plan, not to short blindly."],
+ ["myth","High volume means price will go up.","Volume is made by both buyers and sellers. High volume only says that many people participated."],
+ ["do","Add volume and a 20-period average of volume to a chart. Find three breakouts in the last few months. For each, compare the breakout candle’s volume with the average and note whether the breakout held."]
+ ],
+ q:[
+ ["Volume tells you…",["The direction of the next move","How much was traded","The future price","The fees"],1,"Volume measures participation, not direction."],
+ ["A breakout on much higher-than-usual volume is generally…",["Less reliable","More convincing","Irrelevant","A sign of an error"],1,"More participants behind the move makes it harder to reverse quickly."],
+ ["Why compare volume across more than one exchange?",["Some volume can be inflated by wash trading","Fees differ","Taxes","Colors differ"],0,"Wash trading can inflate volume on some venues, so cross-checks help."],
+ ["“Relative volume” means volume compared with…",["Its recent average","Volume in USD only","BTC volume only","Volume at night"],0,"Comparing with a recent average shows whether a candle is unusual."]
+ ]},
+{ m:"8 min read",
+ pre:[["story","The crossover trap (fictional)","A trader decides to buy every time a fast average crosses above a slow one. In a sideways market, that happens six times in two months. Five of them lose a little, one wins a little. After fees he is down, and he blames the indicator. The indicator did exactly what it always does; it was the wrong market for it."]],
+ add:[
+ ["h","Moving averages as dynamic support"],
+ ["p","In a healthy trend, price often pulls back to a rising average, such as the 20 or 50 EMA, and continues. That is why traders watch them. But there is no guarantee. Sometimes price slices through, and that is information, too: the trend may be weaker than it looked."],
+ ["h","The lag problem"],
+ ["fig",function(){return chart([100,102,99,103,100,102,99,103,100,102,99,102,100,101,99,102],{sma:3,sma2:8,label:"Two moving averages crossing again and again in a sideways market"});},"In a sideways market, two averages keep crossing. Every crossing looks like a signal, and most of them are noise."],
+ ["h","Combining tools"],
+ ["p","A moving average works best as one piece of a plan. A simple example: the trend is up (higher highs, price above the 50 MA), price pulls back to a support zone, volume dries up on the pullback, a candle shows rejection of the low, the stop goes below the swing low, and the position is sized at 1% risk. Each tool answers a different question."],
+ ["myth","A golden cross (50 above 200) guarantees a rally.","It describes what has already happened, as both averages lag. Sometimes a rally follows and sometimes not."],
+ ["do","Add the 20 and 50 EMA to a daily chart. Count the crossovers in the last six months, and write down what price did after each. Is it worth trading them as is?"]
+ ],
+ q:[
+ ["A moving average always…",["Predicts the future","Lags price","Leads price","Equals volume"],1,"It is built from past prices, so it always lags."],
+ ["Compared with an SMA, an EMA…",["Weights recent prices more","Weights recent prices less","Is identical","Measures volume"],0,"The EMA reacts faster because it gives more weight to recent candles."],
+ ["Crossover signals tend to perform worst in…",["Strong trends","Sideways markets","High-volume markets","Weekends only"],1,"Crossovers whipsaw in ranges, with many small losses."],
+ ["What is the best use of a moving average?",["As the only entry signal","As context together with levels and trend","Instead of a stop-loss","To justify higher leverage"],1,"It is a lens for the trend, not a trading system on its own."]
+ ]}
+];
+
+EXTRA.risk = [
+{ m:"10 min read",
+ pre:[["story","Three trades, one account (fictional)","Mia and Leo both start with $1,000 and both lose their first three trades in a row. Mia risked 10% each time. She is now at $729. Leo risked 1% each time. He is at $970. Same bad luck, very different positions. Mia now needs about a 37% gain to get back to even. Leo needs about 3%."]],
+ add:[
+ ["h","Position size in four steps"],
+ ["ul",["Decide the amount you will lose if the stop is hit: account × risk percent.","Find the entry price and the stop price. The difference is the loss per coin.","Position size = amount at risk ÷ loss per coin.","Check that the position, the fees and the stop all make sense together. If not, skip the trade."]],
+ ["h","The same trade on different accounts"],
+ ["tbl",[["Account","Risk (1%)","Loss per coin","Size"],["$500","$5","$5","1 coin"],["$1,000","$10","$5","2 coins"],["$5,000","$50","$5","10 coins"]]],
+ ["p","The idea is identical for everyone. A small account is not a reason to risk more, it is a reason to be patient."],
+ ["fig",function(){return bars([["1% risk",90.4,"g","90.4%"],["2% risk",81.7,"g","81.7%"],["5% risk",59.9,"r","59.9%"],["10% risk",34.9,"r","34.9%"]],"Account left after ten losses in a row");},"Share of the account left after ten losing trades in a row, at different risk levels per trade."],
+ ["h","Risk is not position size"],
+ ["p","A frequent confusion: risking 1% does not mean buying 1% of your account. Your position can be 20% of the account and still risk only 1%, as long as the stop is close enough. What matters is the loss at the stop, not the size of the position on screen."],
+ ["myth","If I risk only 1% per trade, I cannot lose much.","You lose 1% each time you are wrong. If your plan has no edge, 1% only makes the decline slower. Risk control keeps you alive; it does not create profits by itself."],
+ ["do","Use your own numbers: your account size, one chart you like, an entry and a stop where the idea is wrong. Calculate the position size at 1% risk and write it in your notes. Then change the stop and see how the size changes."]
+ ],
+ q:[
+ ["Account $2,000, risk 1%, entry $50, stop $48. What size?",["5 coins","10 coins","20 coins","40 coins"],1,"1% of $2,000 is $20. The loss per coin is $2, so $20 ÷ $2 = 10 coins."],
+ ["If the stop must be placed further away, for the same risk the position should be…",["Larger","Smaller","The same","Doubled with leverage"],1,"A larger loss per coin means fewer coins for the same amount at risk."],
+ ["After ten losses in a row at 1% risk, how much of the account is left, roughly?",["About 90%","About 50%","About 10%","Nothing"],0,"1% losses compound slowly. About 90% of the account remains."],
+ ["What does “risk 1%” refer to?",["The position as a percent of the account","The amount lost if the stop is hit, as a percent of the account","The daily return","The exchange fee"],1,"It is the planned loss at the stop, not the size of the position."]
+ ]},
+{ m:"10 min read",
+ pre:[["story","Stop at minus five (fictional)","Chris uses a 5% stop on every trade, on every coin. On a calm coin that is far away. On a wild coin that moves 8% in a day, it is hit again and again, usually just before price goes his way. The stop was based on a feeling, not on the chart."]],
+ add:[
+ ["h","Three ways to place a stop"],
+ ["ul",["Structure: just beyond a swing low or a level. If it breaks, the idea is wrong.","Volatility: a multiple of the recent average range (ATR) away from entry, so the stop respects how much the coin normally moves.","Time: if the trade has not moved your way after a set number of candles, exit. The idea may be right but late."]],
+ ["h","Trailing stops"],
+ ["p","Once a trade is working, you can move the stop up behind price to protect profit, usually below the latest higher low. A trailing stop never moves against you. Be careful with moving it too early, since normal pullbacks will stop you out of a trade that was still working."],
+ ["tbl",[["Price","Move the stop to","Result if stopped"],["100 (entry)","95","-1R"],["105","100","0R (breakeven)"],["110","105","+1R"],["115","110","+2R"]]],
+ ["p","The table assumes an entry at 100 and an initial stop at 95, so 1R is 5 points. Each step locks in more of the move."],
+ ["h","The cost of stops that are too tight"],
+ ["p","A stop that is too tight is not safe, it is expensive. You pay fees and slippage each time you are stopped out, and you collect a string of small losses while the idea itself would have worked."],
+ ["myth","Moving my stop to breakeven fast is always smart.","It feels safe, but it can turn winning ideas into zero-profit trades. It is a trade-off, and you should test which rule fits your style in your journal."],
+ ["do","Take three past trades. For each, mark where a structure stop would have gone and compute the position size at 1% risk. Compare it with the size you actually used."]
+ ],
+ q:[
+ ["Where should a stop-loss go?",["A fixed 5% below entry","Where the trade idea is proven wrong","At the entry price","As far away as possible"],1,"The stop belongs at the price where your reason for the trade no longer holds."],
+ ["A stop placed exactly on the obvious low is risky because…",["There is no risk","It is easily tagged by normal noise","It costs more in fees","It cancels the target"],1,"Many traders put stops in the same spot, and price often wicks through it."],
+ ["A trailing stop…",["Moves with price to protect profit","Widens over time","Removes the risk","Is a guarantee"],0,"It follows the trade in your favor, and never away from it."],
+ ["If the logical stop is too far for your planned size, you should…",["Move it closer without reason","Reduce the position or skip the trade","Remove the stop","Add leverage"],1,"Smaller size keeps the risk right. If it is still too much, skip."]
+ ]},
+{ m:"10 min read",
+ pre:[["story","The 70% trader who lost money (fictional)","A trader wins 7 of every 10 trades and feels great. But each win makes $5 and each loss costs $20. Out of ten trades: 7 × $5 = $35 gained and 3 × $20 = $60 lost, net -$25. He is right most of the time and still loses. Win rate was never the whole story."]],
+ add:[
+ ["h","Expectancy: the number behind it all"],
+ ["p","Expectancy is the average result per trade: (win rate × average win) − (loss rate × average loss). Example: you win 40% of trades with an average win of 2R, and lose 60% with an average loss of 1R. The result is 0.4 × 2 − 0.6 × 1 = +0.2R per trade. Over 100 trades that is about +20R, even though you lose most of them."],
+ ["fig",function(){return bars([["1:1",50,"h","50%"],["1:2",33,"h","33%"],["1:3",25,"g","25%"],["1:5",17,"g","17%"]],"Break-even win rate for different risk:reward ratios");},"Break-even win rate before fees. The bigger the reward compared with the risk, the less often you have to win."],
+ ["h","Realistic targets"],
+ ["p","It is tempting to push a target far away just to make the ratio look good. A target that price rarely reaches does not improve your results. Place targets at real levels, such as the next resistance zone, and accept that some good setups only offer 1:1.5. Skip those where the numbers do not work."],
+ ["h","Taking partial profits"],
+ ["p","Some traders sell half at the first target and let the rest run with a trailing stop. It lowers variance and feels good, but it also reduces your winners’ size. It is a style choice. Test it in your journal rather than assume."],
+ ["myth","I need to win most of my trades to make money.","Many successful traders win less than half of their trades. They make money because wins are bigger than losses."],
+ ["do","Look at your last 20 trades (or 20 paper trades). Compute your win rate, average win and average loss in R, and then your expectancy. If it is negative, which one of the three numbers could you improve first?"]
+ ],
+ q:[
+ ["You risk $10 to make $30. The ratio is…",["1:1","1:2","1:3","1:30"],2,"The reward is three times the risk, so 1:3."],
+ ["The break-even win rate at 1:3 (before fees) is about…",["75%","50%","33%","25%"],3,"Break-even win rate = 1 ÷ (1 + 3) = 25%."],
+ ["Expectancy depends on…",["Win rate and average win and loss","Win rate only","Volume only","Leverage"],0,"Both how often you win and how big the wins and losses are matter."],
+ ["Why should targets be realistic?",["A target price rarely reaches does not help","Bigger is always better","Fees disappear","They do not matter"],0,"A far target looks good on paper, but it rarely gets filled."]
+ ]},
+{ m:"10 min read",
+ pre:[["story","From +40% to zero (fictional)","Ben uses 20x leverage. A 2% move in his favor turns into +40% on his margin, and he feels like a genius. He adds more leverage. A 5% move against him is 100% of his margin at 20x, and the position is liquidated. The same tool that gave him the quick gain took everything within an hour."]],
+ add:[
+ ["h","Stress-test your position"],
+ ["ul",["Where is the liquidation price, and how far is it from entry in percent?","Is my stop clearly before it?","How much does this coin move on an ordinary day? Is the gap to liquidation bigger than that?","What happens if the exchange is slow or price gaps through my stop?"]],
+ ["h","Wicks can liquidate you"],
+ ["p","Liquidation uses the price at that moment, not the closing price. A sharp wick can touch your liquidation price for a few seconds and close the position, even if the candle closes right back where it started. That is another reason to stay far away from the edge."],
+ ["fig",function(){return bars([["2x",50,"g","50%"],["5x",20,"g","20%"],["10x",10,"r","10%"],["25x",4,"r","4%"],["50x",2,"r","2%"]],"Approximate adverse move that wipes out margin at different leverage levels");},"Approximate adverse move that wipes out margin. Fees and maintenance margin make it happen a bit earlier."],
+ ["h","Safer habits"],
+ ["ul",["Use isolated margin and the lowest leverage that fits your plan.","Choose the position size by your stop and 1% risk first.","Keep part of your funds off the exchange or unused as a buffer.","Never add to a losing leveraged position."]],
+ ["myth","Higher leverage just means higher profit.","It means higher profit and higher loss at once, and far less room for the trade to breathe."],
+ ["do","Open the position calculator on your exchange. Enter a 10x long at the current price and note the liquidation price. Then enter your planned stop. If the stop is not clearly closer to entry than liquidation, the plan is not safe."]
+ ],
+ q:[
+ ["At 10x leverage, roughly what adverse move can wipe out your margin?",["1%","10%","50%","100%"],1,"At 10x, a move of about 1 ÷ 10 = 10% against you can erase the margin."],
+ ["Which should be triggered first?",["Liquidation","Your stop-loss","Neither","Funding"],1,"A stop-loss is a planned exit. Liquidation is the exchange’s emergency exit."],
+ ["Isolated margin helps because…",["It limits the loss to the margin of that position","It removes liquidation","It increases leverage","It lowers fees"],0,"The rest of your account is not touched by that one position."],
+ ["A correct way to use leverage is…",["To make a bigger position than the risk plan allows","To put up less margin for the position the risk plan chose","To ignore the stop","To go all-in"],1,"Size comes from the stop and the 1% risk. Leverage only decides how much margin you tie up."]
+ ]}
+];
+
+EXTRA.psych = [
+{ m:"9 min read",
+ pre:[["story","The 3 a.m. alert (fictional)","Dan’s phone buzzes at 3 a.m.: a coin is up 30% since yesterday. Chat groups are full of rocket emojis. He buys with a bigger size than usual, because “this one is different”. By morning the coin is down 12% from his entry. Nothing in his plan had told him to buy. A feeling did."]],
+ add:[
+ ["h","The biases behind FOMO"],
+ ["ul",["Herd behavior: if everyone is buying, it feels safer to join them.","Recency bias: what just happened feels like what will keep happening.","Loss aversion: a loss hurts about twice as much as an equal gain feels good, so missing a gain feels like losing.","Survivorship bias: social feeds show winners, not the many who bought the same top and said nothing."]],
+ ["h","The cooling-off protocol"],
+ ["ul",["Close the app or step away from the screen.","Write down the checklist answers: reason, stop, size, target, plan.","Wait 15 minutes.","If the trade still fits your plan, take it at your normal size. If not, let it go."]],
+ ["tbl",[["Feeling","What to do"],["FOMO","Wait 15 minutes, re-read the plan"],["Greed","Take profit at the planned target"],["Fear","Follow the stop you set when calm"],["Regret","Write it in the journal, not on the chart"]]],
+ ["myth","If I do not buy now, I will miss everything.","Markets produce new setups every week. A missed move costs you nothing. A chased one can cost a lot."],
+ ["do","For one week, write down each moment you feel an urge to buy something right now. Next to it, note the price at that moment, and the price a day later. Most people are surprised by how often the urge was a bad signal."]
+ ],
+ q:[
+ ["FOMO tends to make people buy…",["Late, after a big move","Early, before a move","Never","Only on dips"],0,"The urge is strongest after price has already risen a lot."],
+ ["What is survivorship bias on social media?",["Only winning trades get posted","All trades are posted","It has no effect","It is a fee"],0,"You see the winners and not the many who lost, which distorts what is normal."],
+ ["What is the best first step when you feel the urge to buy?",["Buy a bigger size","Pause and write down the checklist answers","Add leverage","Delete your journal"],1,"A pause plus written answers brings the plan back into the decision."],
+ ["Loss aversion means…",["Losses feel stronger than equal gains","People love losses","Fees are low","Nothing"],0,"People tend to feel the pain of a loss more strongly than the pleasure of the same gain."]
+ ]},
+{ m:"9 min read",
+ pre:[["story","Two stop-outs before lunch (fictional)","Ana loses 1% on a trade in the morning, then another 1%. Annoyed, she decides to “make it back” and risks 5% on the next one. It loses too. Her day: -7%, with a plan she broke at the first temptation. The first two losses were normal. The third was a choice."]],
+ add:[
+ ["h","What the urge feels like"],
+ ["ul",["A racing heart and a hot face after a stop-out.","A voice saying “just one more, to get it back”.","Looking for a setup instead of waiting for one.","Wanting a bigger size than usual."]],
+ ["h","Daily rules that work"],
+ ["tbl",[["Rule","Example"],["Daily loss limit","3% of the account"],["Maximum trades per day","5"],["After two losses in a row","Stop for one hour"],["After the daily limit","Done for the day"]]],
+ ["fig",function(){return bars([["-10% loss",11,"h","+11%"],["-25% loss",33,"h","+33%"],["-50% loss",100,"r","+100%"],["-75% loss",300,"r","+300%"]],"Gain needed to recover from different losses");},"The deeper the hole, the harder the climb. A 50% loss needs a 100% gain to get back to even."],
+ ["h","Turn a loss into a lesson"],
+ ["p","After each stop-out, write four lines in your journal: What was my plan? What happened? Which rule did I break, if any? What is one change for next time? If the answer to the third question is “none”, then the loss was just part of the game, and that is fine."],
+ ["myth","A bigger trade will get my money back faster.","It will also make the next loss bigger. Recovery comes from a series of normal, planned trades."],
+ ["do","Write your own circuit breakers today: daily loss limit, maximum number of trades, and the break after a stop-out. Put them in your notes app, where you will see them before every session."]
+ ],
+ q:[
+ ["Revenge trading is…",["Trading to win back a loss right away","Trading by a plan","Hedging","Closing a trade early"],0,"It is a reaction to the loss, not a decision based on a setup."],
+ ["A 50% loss needs what gain to get back to even?",["50%","75%","100%","150%"],2,"If $100 falls to $50, you need to double it, which is a 100% gain."],
+ ["Which is a good circuit breaker?",["A daily loss limit","Doubling the size after a loss","Removing stops","Trading longer hours"],0,"A hard limit stops one bad day from becoming a disaster."],
+ ["When should you write your trading rules?",["When you are calm, before trading","In the middle of a loss","Never","After a blow-up"],0,"Rules made calmly protect you when you are not calm."]
+ ]},
+{ m:"8 min read",
+ pre:[["myth","Experienced traders do not need checklists.","Pilots and surgeons are experts, and they still use checklists. The more stressed you are, the less you can trust your memory. A checklist is not for beginners, it is for humans."]],
+ add:[
+ ["h","A fuller pre-trade checklist"],
+ ["ul",["What is the trend on the higher timeframe?","Which levels are nearby?","Is my risk 1% or less, including fees?","Is there news or a scheduled event soon (a major data release, a token unlock)?","How do I feel on a scale of 1 to 10? Below 4 or above 8, I do not trade."]],
+ ["h","A worked example"],
+ ["tbl",[["Question","Answer"],["Reason","Retest of a broken resistance at 100"],["Stop","95, just below the swing low"],["Size","2 coins, which is 1% risk"],["Target","110, which is 1:2"],["Plan match","Yes, the “retest” setup"]]],
+ ["h","The post-trade checklist"],
+ ["ul",["Did I follow the plan, from entry to exit?","What was my emotional state before and after?","What is one thing I would do differently?"]],
+ ["p","The post-trade list is where learning happens. Keep it short enough that you will actually do it every time."],
+ ["do","Write your own checklist in your notes app today. Make it fit on one screen. Pin the note, and answer it in writing before your next trade."]
+ ],
+ q:[
+ ["If you cannot answer one of the checklist questions…",["Trade anyway with a smaller size","Do not trade","Ask a friend to decide","Increase the size"],1,"A missing answer means the setup is not ready."],
+ ["Why answer the checklist in writing?",["It slows you down and exposes weak reasoning","It looks nice","The exchange requires it","It has no effect"],0,"Writing forces you to be specific, and vague ideas fall apart."],
+ ["What is the post-trade checklist for?",["Learning from each trade","Hiding mistakes","Skipping stops","Nothing"],0,"It turns each result into a lesson."],
+ ["Which of these is NOT one of the five core questions?",["Reason","Stop","Where will the price be tomorrow?","Target"],2,"You are not asked to predict. You are asked to plan."]
+ ]},
+{ m:"8 min read",
+ pre:[["story","Eleven hours on the chart (fictional)","Rob spends a Saturday glued to the screen. By hour six he is switching timeframes without a plan. By hour nine he takes a trade because he is bored. By hour eleven he has lost more than in the whole previous week, and has no idea what he was trying to do. The market was never the problem. His tired brain was."]],
+ add:[
+ ["h","Decision fatigue"],
+ ["p","Every decision uses a bit of mental energy. After many hours of charts, your decisions get worse: you take lower-quality setups, you hesitate on good ones, and you make emotional exits. Fewer decisions, made when you are fresh, usually beat many decisions made while tired."],
+ ["h","A sane daily routine"],
+ ["ul",["Pick one or two times a day to analyze the charts, and set alerts for the levels that matter.","Do not trade after a bad night of sleep or in a bad mood.","Spend ten minutes at the end of the day on the journal.","Take at least one full day a week away from the charts."]],
+ ["h","Handling a losing streak"],
+ ["tbl",[["Situation","Rule"],["3 losses in a row","Cut your size in half"],["5 losses in a row","Pause two days and review the journal"],["Back on track","Return to full size after 3 trades that followed the plan"]]],
+ ["myth","Serious traders watch the charts all day.","Many serious traders look rarely and let alerts do the work. Screen time is not a measure of skill."],
+ ["do","Choose your next day off from the charts and put it in your calendar. Set alerts at your key levels, close the app and notice how it feels."]
+ ],
+ q:[
+ ["Price alerts help you…",["Spend less time on the screen","Increase leverage","Remove stops","Nothing"],0,"Alerts let the market come to you."],
+ ["Which is a sign that you need a break?",["Breaking your own rules twice in one day","Following the plan","Reading your journal","Using stops"],0,"Repeated rule-breaking is a signal that emotions are in charge."],
+ ["Crypto trades 24/7. Does that mean you must watch it all the time?",["Yes","No, you choose when to look","Yes, especially at night","Only on weekends"],1,"The market never closes, but you can decide when to engage."],
+ ["After a big win or a big loss it is wise to…",["Take the rest of the day off","Double the size","Ignore it","Add leverage"],0,"Both extremes can distort your judgment."]
+ ]}
+];
+EXTRA.journal = [
+{ m:"9 min read",
+ pre:[["story","The pattern in the notes (fictional)","After 30 journal entries, Rob adds up his results by the column he almost skipped, “feeling”. Almost every loser is marked “rushed”. His setups were fine. His losses came from trades he took in a hurry. Without the journal, he would still be tweaking his indicators."]],
+ add:[
+ ["h","Where to keep it"],
+ ["p","A spreadsheet, a notes app or a dedicated tool; the best one is the one you will actually use. Start with a simple table. You can add columns later. A journal you fill in every time beats a perfect one you abandon in a week."],
+ ["h","Tags that make patterns visible"],
+ ["p","Add three types of tag to each trade: the setup (“retest”, “breakout”), the mistake, if any (“moved stop”, “no plan”), and the emotion (“calm”, “rushed”). After a month, count them."],
+ ["tbl",[["Tag","Trades","Average result"],["Retest","8","+0.6R"],["Breakout","6","-0.3R"],["Rushed","5","-0.9R"]]],
+ ["p","Example numbers show how a journal speaks: retests work, breakouts do not (yet), and rushed trades are costly."],
+ ["h","Use R, not dollars"],
+ ["p","Record results in R, the multiple of your initial risk. Risk $10 and lose $10: -1R. Risk $10 and make $25: +2.5R. R lets you compare trades of different sizes and track your progress as your account grows."],
+ ["do","Create your journal now with these columns: date, market, side, entry, stop, target, size, setup tag, reason, result in R, emotion. Log your next trade, even if it is a paper trade, within five minutes of taking it."]
+ ],
+ q:[
+ ["What is an R-multiple?",["The result in units of your initial risk","The exchange fee","A chart pattern","The leverage used"],0,"If you risk $10 and make $20, that is +2R."],
+ ["Which column is often the most useful?",["The emotion you felt","Your username","The exchange logo","The color of the fee"],0,"Emotions explain mistakes that numbers hide."],
+ ["How often should you review the journal?",["Never","Once a week","Only after profits","Every minute"],1,"A weekly review catches repeating patterns before they become expensive habits."],
+ ["The main benefit of a journal is…",["It shows patterns in your behavior","It guarantees profit","It avoids tax","It replaces stops"],0,"It turns single trades into data you can learn from."]
+ ]},
+{ m:"9 min read",
+ pre:[["myth","Exchanges hunt stops on purpose.","It cannot be proven, and you do not need to prove it. What you can see is that price often visits obvious areas where many stops sit. Plan for that, rather than complain about it."]],
+ add:[
+ ["h","Why price visits obvious stops"],
+ ["p","A stop order is a resting order to sell. A cluster of them below a low is a pool of liquidity. Large participants need someone to trade against, and clusters of orders provide it. This is a widely discussed idea, not a law, but the practical lesson is the same: obvious stop spots get tested more often than you would like."],
+ ["h","Worked numbers"],
+ ["tbl",[["","Tight stop","Wider stop"],["Entry","100","100"],["Stop","99.5","97"],["Loss per coin","0.5","3"],["Size at $10 risk","20 coins","3.3 coins"],["Wick to 98","Stopped out","Still in the trade"]]],
+ ["p","The wider stop needs a much smaller position for the same risk. That is the trade-off: you gain staying power and lose size."],
+ ["h","Three ways to adapt"],
+ ["ul",["Place the stop beyond the level, not on it, and reduce the size.","Wait for a candle to close back above the level before entering.","Accept that some stops will be hit, and make sure the average trade is still positive."]],
+ ["do","Look at your last five stopped-out trades. For each, check whether price later reached your target. If it did more than once, your stops are probably too close to the obvious spot."]
+ ],
+ q:[
+ ["Why does price often wick below an obvious low?",["Many stop orders cluster there","The exchange hates you","Volume is zero","Candles are random"],0,"Clusters of resting orders attract price."],
+ ["A sensible adaptation after a stop was hit by a wick is…",["Place the stop slightly beyond the level and use a smaller size","Remove all stops","Double the size","Stop journaling"],0,"This keeps the risk constant and gives the trade more room."],
+ ["The idea was right but the trade lost. The lesson is…",["Stop placement matters","Ideas never matter","Use leverage","Always trade bigger"],0,"A good idea can still lose on a poorly placed stop."],
+ ["With a wider stop and the same $10 risk, the position size must be…",["Larger","Smaller","The same","Zero"],1,"Each coin loses more at the stop, so fewer coins fit the same risk."]
+ ]},
+{ m:"8 min read",
+ pre:[["story","The trade she did not take (fictional)","Priya sees a coin up ten days in a row and feels the pull to buy. She asks herself the five questions and cannot name a logical stop. She skips it. Two weeks later the coin pulls back 8% to a level she had marked, she enters there with a clear stop, and the trade pays +2R. Skipping was not missing out. It was waiting for a better price."]],
+ add:[
+ ["h","Chasing vs. planning"],
+ ["tbl",[["Chasing","Planning"],["Enter after a big green run","Wait for a pullback to a level"],["Stop “somewhere below”","Stop where the idea is wrong"],["Reason: fear of missing out","Reason: a setup from the plan"],["Size: bigger to catch up","Size: 1% risk"]]],
+ ["h","How to re-enter properly"],
+ ["ul",["Mark the zone where a pullback would make sense.","Set an alert there and walk away.","When price arrives, wait for a candle that shows rejection of the level.","Define the stop, the target and the size, then enter."]],
+ ["h","The value of a skipped trade"],
+ ["p","Every skipped bad trade saves you money you never see in a statement. Keep a short list of skipped trades and what price did afterwards. It builds patience and shows that your rules work."],
+ ["myth","Skipping trades means missing profits.","You cannot miss what your plan never offered. You can only miss trades that match your rules."],
+ ["do","For two weeks, keep a list of trades you skipped because they broke your rules. Next to each, note what happened a day and a week later."]
+ ],
+ q:[
+ ["Which is a red flag for a trade?",["No clear level for the stop","A clear support zone","A written reason","A defined target"],0,"If you cannot name the stop, the idea is not defined."],
+ ["After a big run with no pullback, a better approach is…",["Chase it with leverage","Wait for a pullback to a level with a defined stop","Ignore the stop","Buy more"],1,"A pullback gives you a level and a logical stop."],
+ ["What does a skipped-trades list build?",["Patience and evidence that the rules work","Fees","Leverage","Nothing"],0,"You see that skipping is often right, and it becomes easier."],
+ ["If you cannot define the stop before you enter, the setup is…",["Not ready","Perfect","A guaranteed winner","Ready with leverage"],0,"No stop, no trade."]
+ ]},
+{ m:"8 min read",
+ pre:[["myth","A high win rate means I had a good month.","Win rate is only one number. A trader who wins 70% of trades but loses much more on the losers can lose money, as you saw in the risk/reward lesson."]],
+ add:[
+ ["h","Build your own monthly report"],
+ ["ul",["Export or copy all trades of the month into one table.","Convert every result to R.","Compute the number of trades, win rate, average win, average loss and expectancy.","Tag the most common mistake and count how often it happened.","Choose one change for next month."]],
+ ["h","Expectancy, with the example numbers"],
+ ["p","From the example month: 9 wins out of 22 trades is a 40.9% win rate. Average win +2.1R, average loss -1R. Expectancy = 0.409 × 2.1 − 0.591 × 1 ≈ +0.27R per trade. Over 22 trades that is about +5.9R, matching the net result."],
+ ["fig",function(){return bars([["Week 1",25,"g","+2.5R"],["Week 2",10,"r","-1.0R"],["Week 3",40,"g","+4.0R"],["Week 4",4,"g","+0.4R"]],"Example weekly results in R");},"Example weekly results: the month ended at +5.9R, but one week was negative. That is normal."],
+ ["h","Maximum drawdown"],
+ ["p","Drawdown is the drop from a peak in your account to a later low. Track the biggest one. If it is larger than you can emotionally handle, or larger than your plan allows, reduce your size until it fits."],
+ ["do","Put a reminder on the last day of this month for a one-hour review. Do the five steps above, even if you only have ten trades."]
+ ],
+ q:[
+ ["Nine wins at +2R and thirteen losses at -1R. What is the net result?",["-5R","0R","+5R","+18R"],2,"9 × 2R = +18R, 13 × 1R = -13R, net +5R."],
+ ["Win rate alone…",["Does not tell you if you made money","Always shows profit","Replaces R","Is the same as expectancy"],0,"You also need the size of wins and losses."],
+ ["How many changes should you make after a monthly review?",["All at once","One","None","Ten"],1,"One change at a time lets you see what helped."],
+ ["Maximum drawdown is…",["The biggest drop from a peak to a later low","The biggest win","The fee total","The leverage limit"],0,"It shows how deep your worst stretch was."]
+ ]}
+];
+
+// ====== MERGE EXTRA INTO COURSES ======
+COURSES.forEach(function(c){
+  var ex = EXTRA[c.id] || [];
+  c.lessons.forEach(function(l, i){
+    var e = ex[i]; if (!e) return;
+    var key = l.b.pop(), first = l.b.shift();
+    l.b = [first].concat(e.pre || [], l.b, e.add || [], [key]);
+    l.q = e.q;
+    if (e.m) l.m = e.m;
+  });
+});
+
+// =================================
+
+var tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+var done = {};
+try { done = JSON.parse(localStorage.getItem('rcd_done') || '{}'); } catch (e) { done = {}; }
+function save(){ try { localStorage.setItem('rcd_done', JSON.stringify(done)); } catch (e) {} }
+
+var H = [16, 26, 21, 30];
+function candles(c){
+  return '<span class="bar" aria-hidden="true">' + c.lessons.map(function(l,i){
+    return '<i class="c ' + (done[c.id+':'+i] ? 'g' : '') + '" style="height:' + H[i % 4] + 'px"></i>';
+  }).join('') + '</span>';
+}
+function count(c){ return c.lessons.filter(function(l,i){ return done[c.id+':'+i]; }).length; }
+
+function block(b){
+  var t = b[0];
+  if (t === 'p') return '<p class="body">' + b[1] + '</p>';
+  if (t === 'h') return '<h3>' + b[1] + '</h3>';
+  if (t === 'fig') return '<figure>' + b[1]() + '<figcaption>' + b[2] + '</figcaption></figure>';
+  if (t === 'tip') return '<div class="callout"><b>Tip</b><p>' + b[1] + '</p></div>';
+  if (t === 'warn') return '<div class="callout warn"><b>Watch out</b><p>' + b[1] + '</p></div>';
+  if (t === 'story') return '<div class="callout story"><b>Story: ' + b[1] + '</b><p>' + b[2] + '</p></div>';
+  if (t === 'myth') return '<div class="callout myth"><b>Myth: ' + b[1] + '</b><p>Reality: ' + b[2] + '</p></div>';
+  if (t === 'do') return '<div class="callout do"><b>Try it yourself</b><p>' + b[1] + '</p></div>';
+  if (t === 'ul') return '<ul>' + b[1].map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul>';
+  if (t === 'key') return '<div class="callout key"><b>Key takeaways</b><ul>' + b[1].map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul></div>';
+  if (t === 'tbl') return '<div class="tw"><table><tr>' + b[1][0].map(function(x){ return '<th>' + x + '</th>'; }).join('') + '</tr>' +
+    b[1].slice(1).map(function(r){ return '<tr>' + r.map(function(x){ return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</table></div>';
+  return '';
+}
+
+var qa = {};
+try { qa = JSON.parse(localStorage.getItem('rcd_quiz') || '{}'); } catch (e) { qa = {}; }
+function saveQ(){ try { localStorage.setItem('rcd_quiz', JSON.stringify(qa)); } catch (e) {} }
+function score(c, i){
+  var l = c.lessons[i], a = qa[c.id + ':' + i];
+  if (!a || !l.q) return null;
+  var n = 0, r = 0;
+  l.q.forEach(function(q, k){ if (a[k] != null) { n++; if (a[k] === q[2]) r++; } });
+  return n === l.q.length ? r : null;
+}
+function quizHtml(c, i){
+  var l = c.lessons[i]; if (!l.q) return '';
+  var a = qa[c.id + ':' + i] || [], h = '<h3>Test yourself</h3><p class="hint">' + l.q.length + ' questions. Tap an answer.</p>', n = 0, r = 0;
+  l.q.forEach(function(q, k){
+    var ch = a[k];
+    h += '<div class="q"><p class="body"><b>' + (k + 1) + '. ' + q[0] + '</b></p>';
+    q[1].forEach(function(o, j){
+      var cls = 'opt', mark = '';
+      if (ch != null) { if (j === q[2]) { cls += ' ok'; mark = '✓ '; } else if (j === ch) { cls += ' no'; mark = '✗ '; } }
+      h += '<button class="' + cls + '" data-q="' + k + '" data-o="' + j + '"' + (ch != null ? ' disabled' : '') + '>' + mark + o + '</button>';
+    });
+    if (ch != null) { n++; if (ch === q[2]) r++; h += '<p class="exp"><b>' + (ch === q[2] ? 'Correct. ' : 'Not quite. ') + '</b>' + q[3] + '</p>'; }
+    h += '</div>';
+  });
+  if (n === l.q.length) h += '<div class="callout key"><b>Your score: ' + r + ' of ' + l.q.length + '</b><p>' + (r === l.q.length ? 'Perfect. You can mark the lesson as done.' : 'Re-read the sections you missed, then retake the quiz.') + '</p></div><button class="btn undo" data-retake>Retake quiz</button>';
+  return h;
+}
+
+var view = {name:'home'};
+var app = document.getElementById('app');
+
+function home(){
+  var total = 0, got = 0;
+  COURSES.forEach(function(c){ total += c.lessons.length; got += count(c); });
+  app.innerHTML =
+    '<h1>Red Candle Diaries Academy</h1>' +
+    '<p class="hint">Free trading lessons. No signals, no hype.</p>' +
+    '<div class="summary"><div><b>' + got + ' of ' + total + '</b><p class="hint">lessons completed</p></div></div>' +
+    COURSES.map(function(c){
+      return '<button class="course" data-course="' + c.id + '"><div class="top"><div><b>' + c.title + '</b><p class="hint">' + c.desc + '</p></div>' + candles(c) + '</div><p class="hint" style="margin-top:12px">' + count(c) + ' of ' + c.lessons.length + ' lessons</p></button>';
+    }).join('') +
+    '<p class="note">Educational content only. Not financial advice. Crypto trading carries a high risk of loss. Never trade money you can’t afford to lose.</p>';
+}
+function course(c){
+  app.innerHTML =
+    '<button class="back" data-back>Back to courses</button>' +
+    '<h2>' + c.title + '</h2><p class="hint" style="margin-bottom:18px">' + c.desc + '</p>' +
+    c.lessons.map(function(l,i){
+      var d = done[c.id+':'+i];
+      return '<button class="lesson ' + (d ? 'done' : '') + '" data-lesson="' + i + '"><span class="dot"></span><span class="t"><b>' + l.t + '</b><p class="hint">' + l.m + (d ? ' · done' : '') + (score(c, i) != null ? ' · quiz ' + score(c, i) + '/' + l.q.length : '') + '</p></span></button>';
+    }).join('');
+}
+function lesson(c, i){
+  var l = c.lessons[i], d = done[c.id+':'+i];
+  app.innerHTML =
+    '<button class="back" data-back>Back to ' + c.title.toLowerCase() + '</button>' +
+    '<h2>' + l.t + '</h2><p class="hint">' + l.m + '</p>' +
+    l.b.map(block).join('') +
+    quizHtml(c, i) +
+    (l.link ? '<button class="btn undo" data-open="' + l.link + '">' + (l.ll || 'Read more') + '</button>' : '') +
+    '<button class="btn ' + (d ? 'undo' : '') + '" data-toggle>' + (d ? 'Mark as not done' : 'Mark as done') + '</button>' +
+    '<p class="note">Educational content only. Not financial advice.</p>';
+}
+function render(keep){
+  var c = COURSES.filter(function(x){ return view.name !== 'home' && x.id === view.id; })[0];
+  if (view.name === 'home') home();
+  else if (view.name === 'course') course(c);
+  else lesson(c, view.i);
+  if (tg) { view.name === 'home' ? tg.BackButton.hide() : tg.BackButton.show(); }
+  if (!keep) window.scrollTo(0, 0);
+}
+function back(){
+  view = view.name === 'lesson' ? {name:'course', id:view.id} : {name:'home'};
+  render();
+}
+if (tg) tg.BackButton.onClick(back);
+
+app.addEventListener('click', function(e){
+  var t = e.target.closest('button'); if (!t) return;
+  if (t.hasAttribute('data-back')) return back();
+  if (t.dataset.course) { view = {name:'course', id:t.dataset.course}; return render(); }
+  if (t.dataset.lesson !== undefined) { view = {name:'lesson', id:view.id, i:+t.dataset.lesson}; return render(); }
+  if (t.dataset.q !== undefined) {
+    var qk = view.id + ':' + view.i, qq = qa[qk] = qa[qk] || [], qi = +t.dataset.q;
+    if (qq[qi] == null) {
+      qq[qi] = +t.dataset.o; saveQ();
+      var cc = COURSES.filter(function(x){ return x.id === view.id; })[0];
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(qq[qi] === cc.lessons[view.i].q[qi][2] ? 'success' : 'error');
+      var y = window.scrollY; render(true); window.scrollTo(0, y);
+    }
+    return;
+  }
+  if (t.hasAttribute('data-retake')) { delete qa[view.id + ':' + view.i]; saveQ(); render(); return; }
+  if (t.dataset.open) { return tg ? tg.openLink(t.dataset.open) : window.open(t.dataset.open, '_blank'); }
+  if (t.hasAttribute('data-toggle')) {
+    var k = view.id + ':' + view.i;
+    if (done[k]) delete done[k]; else done[k] = 1;
+    save();
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    render();
+  }
+});
+render();
+</script>
+</body>
+</html>
